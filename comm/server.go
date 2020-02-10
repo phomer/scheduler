@@ -106,6 +106,14 @@ func HandleSighup() {
 	server.Auth.Unlock()
 
 	log.Dump("Accounts", server.Auth.Map)
+
+	// TODO: SIGHUP seems to hang the server, not sure if this is
+	// a reasonable way to restart it, or it's just leaking ...
+	err := server.web.ListenAndServe()
+	if err != nil {
+		fmt.Println("FATAL: Web Server Error: ", err)
+		return
+	}
 }
 
 func NewRouter() *mux.Router {
