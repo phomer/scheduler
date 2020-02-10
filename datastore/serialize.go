@@ -6,15 +6,19 @@ package datastore
 
 import (
 	"encoding/json"
-	"fmt"
+
+	"github.com/phomer/scheduler/log"
 )
 
 func Serialize(input interface{}) []byte {
+
+	log.Dump("Input", input)
+
 	output, err := json.Marshal(input)
 	if err != nil {
-		fmt.Println("FATAL: Unable to Serialize Persistent data ", input)
-		panic("Goodbye")
+		log.Fatal("Serialize", err, input)
 	}
+
 	return output
 }
 
@@ -25,8 +29,8 @@ func Deserialize(input []byte, prototype interface{}) interface{} {
 
 	err := json.Unmarshal(input, prototype)
 	if err != nil {
-		fmt.Println("FATAL: Unable to Deserialize Persistent data ", input)
-		panic("Goodbye")
+		log.Fatal("Deserialize", err, input)
 	}
+
 	return prototype
 }

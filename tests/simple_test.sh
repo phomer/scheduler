@@ -3,6 +3,7 @@ LOG=./scheduled.log
 
 # Cleanup
 rm -f $LOG
+#rm -rf ./data
 
 # Start the daemon
 ./scheduled > $LOG 2>&1 &
@@ -12,10 +13,10 @@ sleep 2
 ./register
 sleep 2
 
-# Run a command
-./schedule ls -l
+# Run a command TODO: currently needs full path :-(
+./schedule /bin/ps -elf
 
-sleep 30
+sleep 5 
 
 # Stopping it 
 pkill scheduled

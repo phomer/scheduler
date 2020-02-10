@@ -5,7 +5,14 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+
+	"github.com/phomer/scheduler/log"
 )
+
+// TODO: Should come from configuration
+var open_perms os.FileMode = 0700
+var dir_perms = os.ModePerm
+var database_path = "data"
 
 type Database struct {
 	Name string
@@ -15,41 +22,26 @@ type Database struct {
 
 func NewDatabase(name string) *Database {
 
-	// TODO: Should be Config ENV for persistent data
-	path := "data"
-
 	entry := &Database{
 		Name: name,
-		Path: path,
+		Path: database_path,
 	}
 
-	// Helpful mode
-	entry.touch()
+	// Make sure everything is initialized
+	entry.Touch()
 
 	return entry
 }
 
-var dir_perms = os.ModePerm
-
-func (db *Database) touch() {
-	os.MkdirAll(db.Path, dir_perms)
-}
-
-func (db *Database) filepath() string {
-	return filepath.Join(db.Path, db.Name+".json")
-}
-
-// Locking is external to support transactional integrity
+// File lock on the underlying database data
 func (db *Database) Lock() {
 	db.lock = Lock(db.filepath())
 }
 
+// Release the file lock
 func (db *Database) Unlock() {
 	db.lock.Unlock()
 }
-
-// TODO: Probably configurable as well ...
-var open_perms os.FileMode = 0700
 
 func (db *Database) Load(data interface{}) interface{} {
 	fmt.Println("Loading Database")
@@ -61,26 +53,64 @@ func (db *Database) Load(data interface{}) interface{} {
 }
 
 func (db *Database) Store(data interface{}) {
-	fmt.Println("Storing Database")
 	// Convert to Structure
 	flattened := Serialize(data)
+
 	WriteFile(db.filepath(), flattened)
 }
 
 func WriteFile(filepath string, data []byte) {
 	err := ioutil.WriteFile(filepath, data, open_perms)
 	if err != nil {
-		fmt.Println("Can't read from file")
-		panic("goodbye")
+		log.Fatal("File", err, filepath)
 	}
 }
 
 func ReadFile(filepath string) []byte {
 	buffer, err := ioutil.ReadFile(filepath)
 	if err != nil {
-		fmt.Println("Can't read from file")
-		panic("goodbye")
+		log.Fatal("File", err, filepath)
 	}
 
 	return buffer
+}
+
+// See if the file exists, but throw an error when there are perm problems.
+func FileExists(filepath string) bool {
+	// Dela with the file
+	_, err := os.Stat(filepath)
+	if os.IsNotExist(err) {
+		return false
+
+	} else if err != nil {
+		log.Fatal("Reaching File", err)
+	}
+
+	return true
+}
+
+func TouchFile(path string, filename string) {
+	os.MkdirAll(path, dir_perms)
+
+	file := filepath.Join(path, filename)
+
+	if !FileExists(file) {
+		empty, err := os.Create(file)
+		if err != nil {
+			log.Fatal("Creating File", err)
+		}
+		empty.Close()
+	}
+}
+
+func (db *Database) Touch() {
+	TouchFile(db.Path, db.filename())
+}
+
+func (db *Database) filename() string {
+	return db.Name + ".json"
+}
+
+func (db *Database) filepath() string {
+	return filepath.Join(db.Path, db.filename())
 }
