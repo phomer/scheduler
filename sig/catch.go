@@ -18,15 +18,12 @@ func Initialize() {
 
 	go func() {
 		for {
-			fmt.Println("Waiting for Signal")
 			next := <-signals
-			fmt.Println("Got something", next)
 
 			handler, ok := handlers[next]
 			if !ok {
 				fmt.Println("Uncaught Signal", next)
 			}
-			fmt.Println("Caught Signal")
 			handler()
 		}
 	}()

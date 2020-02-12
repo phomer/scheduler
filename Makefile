@@ -1,3 +1,5 @@
+.PHONY: all start stop clean fulltest build install test
+
 all: build
 	@echo "Built"
 

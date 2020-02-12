@@ -11,10 +11,11 @@ import (
 )
 
 type Token struct {
-	token []byte
+	Signed string
 }
 
 func Hostname() string {
+	// TODO: Replace this, if it isn't commonly set on servers?
 	hostname, err := os.Hostname()
 	if err != nil {
 		log.Fatal("Finding Hostname", err)
@@ -32,7 +33,9 @@ func Username() string {
 
 // # of Seconds since ...
 func ExpiryDate() int64 {
-	return time.Now().Add(2 * time.Hour).Unix()
+
+	// TODO: Implement some form of reissing the token, besides reregistering
+	return time.Now().Add(24 * 60 * time.Hour).Unix()
 }
 
 func SecretKey() []byte {
@@ -55,9 +58,25 @@ func NewToken() *Token {
 	}
 
 	return &Token{
-		token: []byte(tokenString),
+		Signed: tokenString,
 	}
 }
 
-func Validate() {
+func Validate(token *Token) bool {
+
+	claims := jwt.StandardClaims{
+		ExpiresAt: time.Now().Add(24 * 60 * time.Hour).Unix(),
+	}
+
+	tokenString, err := jwt.ParseWithClaims(token.Signed, claims, GetKey)
+	if err != nil {
+		log.Fatal("ParseWithClaims", err)
+	}
+
+	return tokenString.Valid
+}
+
+func GetKey(token *jwt.Token) (interface{}, error) {
+	// TODO: Interrupted by cat needing food :-(, will fix later.
+	return []byte("Secret Key"), nil
 }

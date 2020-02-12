@@ -18,6 +18,7 @@ type Account struct {
 	Uid       uint32
 	Gid       uint32
 	NextId    uint
+	Token     *Token
 }
 
 type AccountMap struct {
@@ -32,7 +33,7 @@ type Authentication struct {
 
 // Assume that this is only getting called by the registration
 // TODO: If I've set the setuid bit to run as root, how to I know the original uid?
-func NewAccount(username string, hostname string) *Account {
+func NewAccount(hostname string, username string, token *Token) *Account {
 	directory, err := os.Getwd()
 	if err != nil {
 		log.Fatal("Invalid Working Directory")
@@ -46,6 +47,7 @@ func NewAccount(username string, hostname string) *Account {
 		Directory: directory,
 		Passwd:    "generated password",
 		NextId:    1,
+		Token:     token,
 	}
 }
 
@@ -70,10 +72,25 @@ func NewAuthentication() *Authentication {
 func (auth *Authentication) UpdateAccount(account *Account) {
 
 	auth.mux.Lock()
+	auth.FileLock()
 
 	fmt.Println("Updating Account")
+	auth.Load() // Could have changed since last loaded
 	auth.Map.Accounts[account.Username] = account
+	auth.Store()
 
+	auth.FileUnlock()
+	auth.mux.Unlock()
+}
+
+func (auth *Authentication) Reload() {
+	auth.mux.Lock()
+	auth.FileLock()
+
+	fmt.Println("Reloading Account")
+	auth.Load()
+
+	auth.FileUnlock()
 	auth.mux.Unlock()
 }
 
@@ -81,6 +98,7 @@ func (auth *Authentication) Find(username string) *Account {
 
 	auth.mux.Lock()
 	defer auth.mux.Unlock()
+	// Don't worry about the file locks here, just in process only
 
 	value, ok := auth.Map.Accounts[username]
 	if ok {
@@ -91,23 +109,21 @@ func (auth *Authentication) Find(username string) *Account {
 }
 
 // Lock the underlying accounts file
-func (auth *Authentication) Lock() {
+func (auth *Authentication) FileLock() {
 	auth.db.Lock()
 }
 
 // Unlock the underlying accounts file
-func (auth *Authentication) Unlock() {
+func (auth *Authentication) FileUnlock() {
 	auth.db.Unlock()
 }
 
 // Reload the data from the file
-func (auth *Authentication) Reload() {
+func (auth *Authentication) Load() {
 	auth.Map = auth.db.Load(auth.Map).(*AccountMap)
 }
 
 // Reload the file from the data
-func (auth *Authentication) Update() {
+func (auth *Authentication) Store() {
 	auth.db.Store(auth.Map)
 }
-
-// Find the entry for a specific account, O(N)

@@ -13,19 +13,15 @@ func main() {
 	fmt.Println("Registering ", username, " on ", hostname)
 
 	// Call the JWT stuff to generate the auth info
-	config := accounts.NewClientConfig(username, hostname)
+	token := accounts.NewToken()
+
+	config := accounts.NewClientConfig(hostname, username, token)
 
 	auth := accounts.NewAuthentication()
-	account := accounts.NewAccount(username, hostname)
+	account := accounts.NewAccount(hostname, username, token)
 
-	// Lock the Accounts database and update it
-	auth.Lock()
-	auth.Reload()
+	// Update the account information
 	auth.UpdateAccount(account)
-	auth.Update()
-
-	// Release the lock
-	auth.Unlock()
 
 	// Save Config
 	config.SaveConfig()

@@ -2,6 +2,7 @@ package accounts
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"path/filepath"
 
@@ -9,21 +10,25 @@ import (
 )
 
 type ClientConfig struct {
+	Protocol    string
 	Hostname    string
 	Port        string
 	Username    string
 	Credentials string
+	Token       *Token
 }
 
 var paths = []string{".", "~/.schedule"}
 
 // Register initialization
-func NewClientConfig(username string, hostname string) *ClientConfig {
+func NewClientConfig(hostname string, username string, token *Token) *ClientConfig {
 
 	return &ClientConfig{
+		Protocol: "http",
 		Hostname: hostname,
 		Username: username,
 		Port:     "8000",
+		Token:    token,
 	}
 }
 
@@ -41,6 +46,20 @@ func FindClientConfig() *ClientConfig {
 	}
 
 	return config
+}
+
+func (config *ClientConfig) GetUrl() string {
+
+	hostname := config.Hostname
+
+	// TODO: Replace with DNS lookup?
+	if Hostname() == hostname {
+		hostname = "127.0.0.1"
+	}
+
+	fmt.Println("Hostname ", hostname, " and ", Hostname())
+
+	return fmt.Sprintf("%s://%s:%s/", config.Protocol, hostname, config.Port)
 }
 
 func (config *ClientConfig) filename() string {

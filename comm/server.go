@@ -69,11 +69,8 @@ func set_server(server *Server) {
 func (server *Server) Start() {
 	fmt.Println("Starting HTTP")
 
-	// TODO: Needs cleanup ...
 	// Reload Accounts
-	server.Auth.Lock()
 	server.Auth.Reload()
-	server.Auth.Unlock()
 
 	// Make this visible to the package, handers need access to shared config
 	set_server(server)
@@ -101,9 +98,8 @@ func HandleSighup() {
 
 	server := server()
 
-	server.Auth.Lock()
+	// Reload accounts
 	server.Auth.Reload()
-	server.Auth.Unlock()
 
 	log.Dump("Accounts", server.Auth.Map)
 

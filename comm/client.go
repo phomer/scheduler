@@ -3,12 +3,10 @@ package comm
 import (
 	"fmt"
 	"io/ioutil"
-	"net"
 	"strings"
 
-	"os"
-
 	"github.com/gorilla/http"
+	httpc "github.com/gorilla/http/client"
 	//"net/http"
 
 	"github.com/phomer/scheduler/accounts"
@@ -20,67 +18,41 @@ func NewClient() http.Client {
 	return http.DefaultClient
 }
 
-func MakeRequest(config *accounts.ClientConfig, request *Request) string {
+func MakeRequest(config *accounts.ClientConfig, request *Request) *Response {
 
-	url := "http://127.0.0.1:8000/" // TODO: Get this from config
+	url := config.GetUrl()
 	client := NewClient()
 
 	buffer := datastore.Serialize(request)
 	reader := strings.NewReader(string(buffer))
 
-	status, args, read_closer, err := client.Post(url, nil, reader)
+	status, _, read_closer, err := client.Post(url, nil, reader)
 	if err != nil {
-		switch value := err.(type) {
+		switch err.(type) {
+
+		// TODO: Add in nicer error messages
+
 		default:
-			log.Dump("error", err)
 			log.Fatal("Get", err)
-			_ = value
 		}
 	}
 
-	defer read_closer.Close()
+	if status.Code != httpc.SUCCESS_OK {
+		return NewResponse("Post Status Failed", nil)
+	}
 
-	// TODO: Do something with this data
-	_ = status
-	_ = args
+	return NewResponse("Success", read_closer)
+}
 
-	data, err := ioutil.ReadAll(read_closer)
+// Loop until the Stream is finished.
+func DisplayStream(response *Response) {
+
+	defer response.Reader.Close()
+
+	data, err := ioutil.ReadAll(response.Reader)
 	if err != nil {
 		fmt.Println("Buffer read err", err)
 	} else {
 		fmt.Println("Buffer:", string(data))
 	}
-
-	fmt.Println("Command is Sent", status)
-
-	return "Sometext"
-}
-
-func SimpleRequest(message string) string {
-	writer := os.Stdout
-
-	url := "http://127.0.0.1:8000/"
-
-	status, err := http.Get(writer, url)
-	if err != nil {
-		switch value := err.(type) {
-		case *net.OpError:
-			/*
-				if val.Err == net.ConnectionError {
-					fmt.Println("Server is not running on host")
-					exit(-1)
-				}
-			*/
-			log.Fatal("Get", err)
-
-		default:
-			log.Dump("error", err)
-			log.Fatal("Get", err)
-			_ = value
-		}
-	}
-
-	fmt.Println("Returned status=", status)
-
-	return "Results"
 }
