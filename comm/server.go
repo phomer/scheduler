@@ -115,6 +115,11 @@ func HandleSighup() {
 func NewRouter() *mux.Router {
 	router := mux.NewRouter()
 	router.HandleFunc("/", Immediate)
+	router.HandleFunc("/schedule", Schedule)
+	router.HandleFunc("/tail", Tail)
+	router.HandleFunc("/output", Output)
+	router.HandleFunc("/status", Status)
+	router.HandleFunc("/remove", Remove)
 
 	return router
 }

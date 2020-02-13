@@ -20,7 +20,7 @@ func NewClient() http.Client {
 
 func MakeRequest(config *accounts.ClientConfig, request *Request) *Response {
 
-	url := config.GetUrl()
+	url := config.GetUrl(request.Type)
 	client := NewClient()
 
 	buffer := datastore.Serialize(request)

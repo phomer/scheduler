@@ -18,6 +18,7 @@ func Immediate(response http.ResponseWriter, request *http.Request) {
 	defer func() {
 		err := recover()
 		if err != nil {
+			// TODO: Send a real error message
 			response.Write([]byte("Server Error"))
 		}
 	}()
@@ -33,6 +34,143 @@ func Immediate(response http.ResponseWriter, request *http.Request) {
 
 	// TODO: Stream file contents
 	response.Write([]byte("Running Command"))
+}
+
+// Execute a command right away
+func Schedule(response http.ResponseWriter, request *http.Request) {
+	// TODO: Hide this ...
+	defer func() {
+		err := recover()
+		if err != nil {
+			// TODO: Send a real error message
+			response.Write([]byte("Server Error"))
+		}
+	}()
+
+	account, err := ValidateRequest(response, request)
+	if err != nil {
+		log.Fatal("Validate", err)
+	}
+
+	cmd := GetClientRequest(request)
+
+	// TODO: Add to the scheduled jobs
+	_ = cmd
+	_ = account
+	// TODO: Return the jobid
+
+	jobid := []byte("42")
+
+	response.Write(jobid)
+}
+
+// Execute a command right away
+func Remove(response http.ResponseWriter, request *http.Request) {
+	// TODO: Hide this ...
+	defer func() {
+		err := recover()
+		if err != nil {
+			// TODO: Send a real error message
+			response.Write([]byte("Server Error"))
+		}
+	}()
+
+	account, err := ValidateRequest(response, request)
+	if err != nil {
+		log.Fatal("Validate", err)
+	}
+
+	cmd := GetClientRequest(request)
+
+	// TODO: Find the scheduled job
+	_ = cmd
+	_ = account
+	// TODO: Remove it
+
+	jobid := []byte("42")
+
+	response.Write(jobid)
+}
+
+// Execute a command right away
+func Tail(response http.ResponseWriter, request *http.Request) {
+	// TODO: Hide this ...
+	defer func() {
+		err := recover()
+		if err != nil {
+			// TODO: Send a real error message
+			response.Write([]byte("Server Error"))
+		}
+	}()
+
+	account, err := ValidateRequest(response, request)
+	if err != nil {
+		log.Fatal("Validate", err)
+	}
+
+	cmd := GetClientRequest(request)
+
+	// TODO: Find the running job
+	_ = cmd
+	_ = account
+	// TODO: stream the output file, starting 200 lines up
+
+	// TODO: Stream file contents
+	response.Write([]byte("Running Command"))
+}
+
+// Execute a command right away
+func Output(response http.ResponseWriter, request *http.Request) {
+	// TODO: Hide this ...
+	defer func() {
+		err := recover()
+		if err != nil {
+			// TODO: Send a real error message
+			response.Write([]byte("Server Error"))
+		}
+	}()
+
+	account, err := ValidateRequest(response, request)
+	if err != nil {
+		log.Fatal("Validate", err)
+	}
+
+	cmd := GetClientRequest(request)
+
+	// TODO: Find the running job
+	_ = cmd
+	_ = account
+	// TODO: stream the output file, starting from the top
+
+	// TODO: Stream file contents
+	response.Write([]byte("Running Command"))
+}
+
+// Execute a command right away
+func Status(response http.ResponseWriter, request *http.Request) {
+	// TODO: Hide this ...
+	defer func() {
+		err := recover()
+		if err != nil {
+			// TODO: Send a real error message
+			response.Write([]byte("Server Error"))
+		}
+	}()
+
+	account, err := ValidateRequest(response, request)
+	if err != nil {
+		log.Fatal("Validate", err)
+	}
+
+	cmd := GetClientRequest(request)
+
+	// TODO: Find the running job, if still in memory, check fs otherwise
+	_ = cmd
+	_ = account
+	// TODO: get the exit code
+
+	exitCode := []byte("42")
+	response.Write(exitCode)
 }
 
 // Return an account that matches, or issue an error

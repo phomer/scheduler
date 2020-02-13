@@ -48,7 +48,7 @@ func FindClientConfig() *ClientConfig {
 	return config
 }
 
-func (config *ClientConfig) GetUrl() string {
+func (config *ClientConfig) GetUrl(request_type string) string {
 
 	hostname := config.Hostname
 
@@ -59,7 +59,7 @@ func (config *ClientConfig) GetUrl() string {
 
 	fmt.Println("Hostname ", hostname, " and ", Hostname())
 
-	return fmt.Sprintf("%s://%s:%s/", config.Protocol, hostname, config.Port)
+	return fmt.Sprintf("%s://%s:%s/%s", config.Protocol, hostname, config.Port, request_type)
 }
 
 func (config *ClientConfig) filename() string {
