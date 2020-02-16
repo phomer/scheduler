@@ -68,29 +68,37 @@ func NewAuthentication() *Authentication {
 	}
 }
 
+// TODO: Need to push this into the root
+func FindAccount(username string) *Account {
+	auth := NewAuthentication()
+	auth.Reload()
+	account := auth.Find(username)
+	return account
+}
+
 // Update the datastructure in memory
 func (auth *Authentication) UpdateAccount(account *Account) {
 
 	auth.mux.Lock()
-	auth.FileLock()
+	auth.file_lock()
 
 	fmt.Println("Updating Account")
-	auth.Load() // Could have changed since last loaded
+	auth.load() // Could have changed since last loaded
 	auth.Map.Accounts[account.Username] = account
-	auth.Store()
+	auth.store()
 
-	auth.FileUnlock()
+	auth.file_unlock()
 	auth.mux.Unlock()
 }
 
 func (auth *Authentication) Reload() {
 	auth.mux.Lock()
-	auth.FileLock()
+	auth.file_lock()
 
 	fmt.Println("Reloading Account")
-	auth.Load()
+	auth.load()
 
-	auth.FileUnlock()
+	auth.file_unlock()
 	auth.mux.Unlock()
 }
 
@@ -109,21 +117,21 @@ func (auth *Authentication) Find(username string) *Account {
 }
 
 // Lock the underlying accounts file
-func (auth *Authentication) FileLock() {
+func (auth *Authentication) file_lock() {
 	auth.db.Lock()
 }
 
 // Unlock the underlying accounts file
-func (auth *Authentication) FileUnlock() {
+func (auth *Authentication) file_unlock() {
 	auth.db.Unlock()
 }
 
 // Reload the data from the file
-func (auth *Authentication) Load() {
+func (auth *Authentication) load() {
 	auth.Map = auth.db.Load(auth.Map).(*AccountMap)
 }
 
 // Reload the file from the data
-func (auth *Authentication) Store() {
+func (auth *Authentication) store() {
 	auth.db.Store(auth.Map)
 }

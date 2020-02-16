@@ -1,8 +1,9 @@
 package comm
 
 import (
+	"bufio"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"strings"
 
 	"github.com/gorilla/http"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/phomer/scheduler/accounts"
 	"github.com/phomer/scheduler/datastore"
+	"github.com/phomer/scheduler/jobs"
 	"github.com/phomer/scheduler/log"
 )
 
@@ -18,7 +20,11 @@ func NewClient() http.Client {
 	return http.DefaultClient
 }
 
-func MakeRequest(config *accounts.ClientConfig, request *Request) *Response {
+func TokenArray(config *accounts.ClientConfig) []string {
+	return []string{config.Token.Signed}
+}
+
+func MakeRequest(config *accounts.ClientConfig, request *jobs.Request) *Response {
 
 	url := config.GetUrl(request.Type)
 	client := NewClient()
@@ -26,7 +32,12 @@ func MakeRequest(config *accounts.ClientConfig, request *Request) *Response {
 	buffer := datastore.Serialize(request)
 	reader := strings.NewReader(string(buffer))
 
-	status, _, read_closer, err := client.Post(url, nil, reader)
+	headers := map[string][]string{
+		"Authorization": []string{config.Token.Signed},
+		"Name":          []string{config.Username},
+	}
+
+	status, _, read_closer, err := client.Post(url, headers, reader)
 	if err != nil {
 		switch err.(type) {
 
@@ -44,15 +55,23 @@ func MakeRequest(config *accounts.ClientConfig, request *Request) *Response {
 	return NewResponse("Success", read_closer)
 }
 
-// Loop until the Stream is finished.
-func DisplayStream(response *Response) {
+var StopStreaming = false
 
+func DisplayStream(response *Response) {
 	defer response.Reader.Close()
 
-	data, err := ioutil.ReadAll(response.Reader)
-	if err != nil {
-		fmt.Println("Buffer read err", err)
-	} else {
-		fmt.Println("Buffer:", string(data))
+	reader := bufio.NewReader(response.Reader)
+	for {
+		if StopStreaming {
+			return
+		}
+		data, err := reader.ReadBytes('\n')
+		if err != nil {
+			if err == io.EOF {
+				return
+			}
+			log.Fatal("Streaming", err)
+		}
+		fmt.Printf("X: %s", data)
 	}
 }

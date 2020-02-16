@@ -2,10 +2,11 @@ package accounts
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"os/user"
 	"time"
+
+	"github.com/phomer/scheduler/log"
 
 	jwt "github.com/dgrijalva/jwt-go"
 )
@@ -42,19 +43,24 @@ func SecretKey() []byte {
 	return []byte("RandomizeThisPlease")
 }
 
-func NewToken() *Token {
-	token := jwt.New(jwt.SigningMethodHS256)
+func CreateToken() *Token {
+	claims := &jwt.StandardClaims{
+		ExpiresAt: time.Now().Unix() + 15000,
+		Issuer:    "scheduler",
+	}
 
-	claims := token.Claims.(jwt.MapClaims)
-
-	claims["admin"] = false      // TODO: Check this?
-	claims["name"] = Username()  // TODO: Check this?
-	claims["exp"] = ExpiryDate() // TODO: Check this?
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
 	tokenString, err := token.SignedString(SecretKey())
 	if err != nil {
-		fmt.Println("Failed to Sign Token", err, token)
+		fmt.Println("Failed to Sign Token ", err, token)
 		panic("Goodbye")
+	}
+
+	// Test it
+	_, err = jwt.ParseWithClaims(tokenString, claims, GetKey)
+	if err != nil {
+		log.Fatal("Tokens are failing", err)
 	}
 
 	return &Token{
@@ -62,21 +68,28 @@ func NewToken() *Token {
 	}
 }
 
+func NewToken(tokenString string) *Token {
+	return &Token{
+		Signed: tokenString,
+	}
+}
+
 func Validate(token *Token) bool {
 
-	claims := jwt.StandardClaims{
-		ExpiresAt: time.Now().Add(24 * 60 * time.Hour).Unix(),
+	claims := &jwt.StandardClaims{
+		ExpiresAt: time.Now().Unix() + 15000,
+		Issuer:    "scheduler",
 	}
 
-	tokenString, err := jwt.ParseWithClaims(token.Signed, claims, GetKey)
+	tokenStatus, err := jwt.ParseWithClaims(token.Signed, claims, GetKey)
 	if err != nil {
-		log.Fatal("ParseWithClaims", err)
+		log.Fatal("ParseWithClaims", err, tokenStatus, token.Signed)
 	}
 
-	return tokenString.Valid
+	return tokenStatus.Valid
 }
 
 func GetKey(token *jwt.Token) (interface{}, error) {
 	// TODO: Interrupted by cat needing food :-(, will fix later.
-	return []byte("Secret Key"), nil
+	return SecretKey(), nil
 }

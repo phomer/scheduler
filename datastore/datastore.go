@@ -44,7 +44,7 @@ func (db *Database) Unlock() {
 }
 
 func (db *Database) Load(data interface{}) interface{} {
-	fmt.Println("Loading Database")
+	fmt.Println("Loading Database " + db.Name)
 
 	// Convert to JSON
 	buffer := ReadFile(db.filepath())

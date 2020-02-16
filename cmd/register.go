@@ -13,7 +13,7 @@ func main() {
 	fmt.Println("Registering ", username, " on ", hostname)
 
 	// Call the JWT stuff to generate the auth info
-	token := accounts.NewToken()
+	token := accounts.CreateToken()
 
 	config := accounts.NewClientConfig(hostname, username, token)
 

@@ -10,8 +10,13 @@ type SignalHandler func()
 
 var signals chan os.Signal
 var handlers map[os.Signal]SignalHandler
+var initialize = false
 
 func Initialize() {
+	if initialize {
+		return
+	}
+	initialize = true
 
 	handlers = make(map[os.Signal]SignalHandler, 0)
 	signals = make(chan os.Signal, 1)

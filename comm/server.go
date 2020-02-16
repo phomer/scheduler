@@ -9,6 +9,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/phomer/scheduler/accounts"
+	"github.com/phomer/scheduler/jobs"
 	"github.com/phomer/scheduler/log"
 	"github.com/phomer/scheduler/sig"
 )
@@ -16,10 +17,17 @@ import (
 var JSON = "application/json"
 
 type Server struct {
-	Auth *accounts.Authentication
-	web  *http.Server
+	// Config parameters
 	Host string
 	Port string
+
+	// Communication
+	web *http.Server
+
+	// Global Datastores
+	Auth   *accounts.Authentication
+	Sched  *jobs.Scheduled
+	Active *jobs.Active
 }
 
 func NewServer() *Server {
@@ -29,10 +37,14 @@ func NewServer() *Server {
 	port := "8000"
 
 	return &Server{
-		Auth: accounts.NewAuthentication(),
-		web:  NewHttpServer(host, port),
 		Host: host,
 		Port: port,
+
+		web: NewHttpServer(host, port),
+
+		Auth:   accounts.NewAuthentication(),
+		Sched:  jobs.NewScheduled(),
+		Active: jobs.NewActive(),
 	}
 }
 
@@ -50,7 +62,7 @@ func NewHttpServer(host string, port string) *http.Server {
 var current *Server
 
 // Catch an error if init is messed up
-func server() *Server {
+func Global() *Server {
 	if current == nil {
 		log.Fatal("Startup", errors.New("Missing Context"))
 	}
@@ -67,10 +79,11 @@ func set_server(server *Server) {
 
 // Start receiving requests
 func (server *Server) Start() {
-	fmt.Println("Starting HTTP")
+	fmt.Println("Starting HTTP for " + server.web.Addr)
 
-	// Reload Accounts
+	// Reload Datastores
 	server.Auth.Reload()
+	server.Sched.Reload()
 
 	// Make this visible to the package, handers need access to shared config
 	set_server(server)
@@ -96,15 +109,16 @@ func HandleSighup() {
 	// Reload Accounts and Jobs
 	fmt.Println("Reloading Accounts")
 
-	server := server()
+	server := Global()
 
 	// Reload accounts
 	server.Auth.Reload()
 
 	log.Dump("Accounts", server.Auth.Map)
 
-	// TODO: SIGHUP seems to hang the server, not sure if this is
+	// TODO: SIGHUP seems to hang the web server, not sure if this is
 	// a reasonable way to restart it, or it's just leaking ...
+	// Probably need a better way to tell the server to reload
 	err := server.web.ListenAndServe()
 	if err != nil {
 		fmt.Println("FATAL: Web Server Error: ", err)
