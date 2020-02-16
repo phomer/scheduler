@@ -18,6 +18,7 @@ import (
 
 // Execute a command right away
 func Immediate(response http.ResponseWriter, request *http.Request) {
+
 	defer func() {
 		err := recover()
 		if err != nil {
@@ -30,8 +31,9 @@ func Immediate(response http.ResponseWriter, request *http.Request) {
 		HandleError(response, err)
 	}
 
-	cmd := GetClientRequest(request)
+	fmt.Print("Running Work")
 
+	cmd := GetClientRequest(request)
 	command := jobs.NewCommand(cmd)
 
 	job := jobs.NewImmediateJob(account, command)
@@ -43,7 +45,7 @@ func Immediate(response http.ResponseWriter, request *http.Request) {
 
 // Execute a command right away
 func Schedule(response http.ResponseWriter, request *http.Request) {
-	// TODO: Hide this ...
+
 	defer func() {
 		err := recover()
 		if err != nil {
@@ -57,6 +59,8 @@ func Schedule(response http.ResponseWriter, request *http.Request) {
 		return
 	}
 
+	fmt.Print("Scheduling Work")
+
 	cmd := GetClientRequest(request)
 
 	command := jobs.NewCommand(cmd)
@@ -68,6 +72,7 @@ func Schedule(response http.ResponseWriter, request *http.Request) {
 
 // Execute a command right away
 func Remove(response http.ResponseWriter, request *http.Request) {
+
 	defer func() {
 		err := recover()
 		if err != nil {
@@ -90,7 +95,7 @@ func Remove(response http.ResponseWriter, request *http.Request) {
 
 // Execute a command right away
 func Tail(response http.ResponseWriter, request *http.Request) {
-	// TODO: Hide this ...
+
 	defer func() {
 		err := recover()
 		if err != nil {
@@ -113,7 +118,7 @@ func Tail(response http.ResponseWriter, request *http.Request) {
 
 // Execute a command right away
 func Output(response http.ResponseWriter, request *http.Request) {
-	// TODO: Hide this ...
+
 	defer func() {
 		err := recover()
 		if err != nil {
@@ -173,7 +178,6 @@ func HandleError(response http.ResponseWriter, err interface{}) {
 
 // Return an account that matches, or issue an error
 func ValidateRequest(response http.ResponseWriter, request *http.Request) (*accounts.Account, error) {
-	fmt.Println("Validating Request")
 
 	tokenString := request.Header.Get("Authorization")
 	if tokenString == "" {
@@ -183,8 +187,6 @@ func ValidateRequest(response http.ResponseWriter, request *http.Request) (*acco
 	}
 
 	token := accounts.NewToken(tokenString)
-
-	log.Dump("Token", token)
 
 	if !accounts.Validate(token) {
 		buffer := []byte("Invalid Token, Authenication Failed")
@@ -209,8 +211,6 @@ func ValidateRequest(response http.ResponseWriter, request *http.Request) (*acco
 		return nil, errors.New("User not Registered")
 	}
 
-	fmt.Println("Validated Account Access for ", account.Username)
-
 	return account, nil
 }
 
@@ -221,8 +221,6 @@ func GetClientRequest(request *http.Request) *jobs.Request {
 	if err != nil {
 		log.Fatal("Request Body", err)
 	}
-
-	log.Dump("Request Buffer", buffer)
 
 	var prototype jobs.Request
 	result := datastore.Deserialize(buffer, &prototype)

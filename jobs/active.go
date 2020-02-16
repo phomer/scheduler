@@ -1,6 +1,7 @@
 package jobs
 
 import (
+	"fmt"
 	"os"
 	"sync"
 	"syscall"
@@ -14,8 +15,9 @@ type ActiveJob struct {
 	Cmd *Command
 
 	IsRunning bool
+	Status    int
 	Pid       int
-	Time      int64
+	Start     int64
 
 	File   *os.File
 	Offset int64
@@ -24,18 +26,18 @@ type ActiveJob struct {
 func NewActiveJob(account *accounts.Account, command *Command) *ActiveJob {
 
 	sched := NewScheduled()
-	command.JobId = sched.AllocateNewJobId(account.Username, command)
+
+	command = sched.AddScheduledCommand(account.Username, command)
 
 	return &ActiveJob{
 		Cmd: command,
 	}
 }
 
-// TODO: Build from an incoming command
 func NewImmediateJob(account *accounts.Account, command *Command) *ActiveJob {
-	//active := NewActive()
+
 	sched := NewScheduled()
-	command.JobId = sched.AllocateNewJobId(account.Username, command)
+	command = sched.AllocateNewJobId(account.Username, command)
 
 	return &ActiveJob{
 		Cmd: command,
@@ -78,6 +80,8 @@ func (active *Active) IsActive(pid int) bool {
 func (active *Active) AddJob(pid int, job *ActiveJob) {
 	active.mux.Lock()
 
+	fmt.Println("Tracking Job ", pid)
+
 	active.Jobs[pid] = job
 
 	active.mux.Unlock()
@@ -103,11 +107,37 @@ func (active *Active) find(username string, jobid int) *ActiveJob {
 	return nil
 }
 
+func CheckStatus(pid int, job *ActiveJob) *ActiveJob {
+	options := syscall.WNOHANG
+
+	// Reap the child that died
+	var status syscall.WaitStatus
+	var usage syscall.Rusage
+
+	_, err := syscall.Wait4(pid, &status, options, &usage)
+	if err != nil {
+		fmt.Println("Error for pid ", pid, err.(error).Error())
+		job.IsRunning = false // Assume it is false for now.
+
+	} else if status.Exited() {
+		job.IsRunning = false
+		job.Status = status.ExitStatus()
+	}
+	return job
+}
+
 func UpdateJobStatus() {
+	fmt.Println("Waking up on a SIGCHLD")
+
 	active := NewActive()
 
 	active.mux.Lock()
-	// Reap the child that died
+
+	for pid, job := range active.Jobs {
+		fmt.Println("Checking Status for ", pid)
+		active.Jobs[pid] = CheckStatus(pid, job)
+	}
+
 	// Go through and delete entries in the overall list of children
 	active.mux.Unlock()
 }

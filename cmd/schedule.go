@@ -39,15 +39,15 @@ func main() {
 
 type CliCommand int
 
-var jobid CliCommand
+var jobid CliCommand = 0
 var cli_cmd string
 
 func ParseArgs(username string) *jobs.Request {
 
-	flag.Var(&jobid, "tail", "jobid for scheduled process")
-	flag.Var(&jobid, "output", "jobid for scheduled process")
-	flag.Var(&jobid, "status", "jobid for scheduled process")
-	flag.Var(&jobid, "remove", "jobid for scheduled process")
+	flag.Var(&jobid, "tail", "jobid")
+	flag.Var(&jobid, "output", "jobid")
+	flag.Var(&jobid, "status", "jobid")
+	flag.Var(&jobid, "remove", "jobid")
 
 	flag.Parse()
 
@@ -135,7 +135,6 @@ func Frequency(value string) (bool, int, *jobs.TimeScale) {
 	freqEx := regexp.MustCompile("([0-9]+)([^0-9]+)")
 
 	list := freqEx.FindStringSubmatch(value)
-	log.Dump("List", list)
 
 	if len(list) == 3 {
 
@@ -159,8 +158,6 @@ func Frequency(value string) (bool, int, *jobs.TimeScale) {
 func CountCommands() int {
 	count := 0
 	flag.Visit(func(value *flag.Flag) {
-		fmt.Println("Visiting " + value.Name)
-
 		// TODO: Shouldn't be this redundant.
 		if value.Name == "tail" || value.Name == "output" ||
 			value.Name == "status" || value.Name == "remove" {

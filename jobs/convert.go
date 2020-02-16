@@ -2,8 +2,6 @@ package jobs
 
 import (
 	"strings"
-
-	"github.com/phomer/scheduler/log"
 )
 
 type TimeScale int
@@ -46,6 +44,5 @@ func RelativeUnixTime(number int, scale *TimeScale) int64 {
 }
 
 func AbsoluteUnixTime(base int64, number int, scale *TimeScale) int64 {
-	log.Dump(number, scale)
 	return base + int64(number*ConvertScale[*scale])
 }

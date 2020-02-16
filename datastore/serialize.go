@@ -12,8 +12,6 @@ import (
 
 func Serialize(input interface{}) []byte {
 
-	log.Dump("Input", input)
-
 	output, err := json.Marshal(input)
 	if err != nil {
 		log.Fatal("Serialize", err, input)

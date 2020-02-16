@@ -51,24 +51,19 @@ func NewAccount(hostname string, username string, token *Token) *Account {
 	}
 }
 
-// TODO: Not threadsafe, or persistent
-func (account *Account) IncrementId() {
-	// TODO: Needs to be done correctly
-	account.NextId += 1
-}
-
 func NewAuthentication() *Authentication {
 	account_map := &AccountMap{
 		Accounts: make(map[string]*Account, 0),
 	}
 
-	return &Authentication{
+	result := &Authentication{
 		Map: account_map,
 		db:  datastore.NewDatabase("Accounts"),
 	}
+
+	return result
 }
 
-// TODO: Need to push this into the root
 func FindAccount(username string) *Account {
 	auth := NewAuthentication()
 	auth.Reload()
@@ -95,8 +90,9 @@ func (auth *Authentication) Reload() {
 	auth.mux.Lock()
 	auth.file_lock()
 
-	fmt.Println("Reloading Account")
+	fmt.Println("Reloading Accounts")
 	auth.load()
+	fmt.Println("Accounts Updated!")
 
 	auth.file_unlock()
 	auth.mux.Unlock()
@@ -114,6 +110,11 @@ func (auth *Authentication) Find(username string) *Account {
 	}
 
 	return nil
+}
+
+// TODO: Quick fix to expose the file name
+func (auth *Authentication) GetFilepath() string {
+	return auth.db.GetFilepath()
 }
 
 // Lock the underlying accounts file

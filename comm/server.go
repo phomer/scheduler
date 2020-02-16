@@ -7,6 +7,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/fsnotify/fsnotify"
 	"github.com/gorilla/mux"
 	"github.com/phomer/scheduler/accounts"
 	"github.com/phomer/scheduler/jobs"
@@ -85,11 +86,17 @@ func (server *Server) Start() {
 	server.Auth.Reload()
 	server.Sched.Reload()
 
+	// Start the background service
+	go jobs.ProcessSchedule()
+
 	// Make this visible to the package, handers need access to shared config
 	set_server(server)
 
 	sig.Initialize()
 	sig.Catch(syscall.SIGHUP, HandleSighup)
+
+	// TODO: Quick fix
+	go WatchAuthChange()
 
 	err := server.web.ListenAndServe()
 	if err != nil {
@@ -114,15 +121,50 @@ func HandleSighup() {
 	// Reload accounts
 	server.Auth.Reload()
 
-	log.Dump("Accounts", server.Auth.Map)
-
 	// TODO: SIGHUP seems to hang the web server, not sure if this is
 	// a reasonable way to restart it, or it's just leaking ...
 	// Probably need a better way to tell the server to reload
+	fmt.Println("Restarting Web Server after Signal")
 	err := server.web.ListenAndServe()
 	if err != nil {
 		fmt.Println("FATAL: Web Server Error: ", err)
 		return
+	}
+}
+
+// TOOD: This is pretty horrible...
+func WatchAuthChange() {
+	server := Global()
+
+	watcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		log.Fatal("FileWatcher", err)
+	}
+
+	auth := server.Auth
+	watcher.Add(auth.GetFilepath())
+	for {
+		select {
+		case event, ok := <-watcher.Events:
+			if !ok {
+				log.Fatal("File Watcher Failed", errors.New("FileWatcher"))
+			}
+			if event.Op&fsnotify.Write == fsnotify.Write {
+				fmt.Println("Datamodified, reloading")
+				auth.Reload()
+
+				// Causes the web server to die
+				err := server.web.ListenAndServe()
+				if err != nil {
+					log.Fatal("Web Server Error: ", err)
+				}
+			}
+		case err, ok := <-watcher.Errors:
+			if !ok {
+				log.Fatal("File Watcher Errors Failed", errors.New("FileWatcher"))
+			}
+			log.Fatal("File Watcher", err)
+		}
 	}
 }
 

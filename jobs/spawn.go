@@ -19,7 +19,7 @@ func Spawn(account *accounts.Account, job *ActiveJob) error {
 
 	command := job.Cmd
 
-	fmt.Println("Spawning off Process", command.Cmd, " for ", account.Username)
+	fmt.Printf("Spawn user: %s cmd: %s args: %v\n", account.Username, command.Cmd, command.Args)
 
 	attributes, _ := Attributes(account, command)
 
@@ -27,6 +27,8 @@ func Spawn(account *accounts.Account, job *ActiveJob) error {
 	if err != nil {
 		return err
 	}
+
+	job = CheckStatus(pid, job) // Might be done already
 
 	active.AddJob(pid, job)
 

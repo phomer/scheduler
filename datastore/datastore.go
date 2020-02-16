@@ -103,6 +103,11 @@ func TouchFile(path string, filename string) {
 	}
 }
 
+// Expose the path outside so, it can be watched.
+func (db *Database) GetFilepath() string {
+	return db.filepath()
+}
+
 func (db *Database) Touch() {
 	TouchFile(db.Path, db.filename())
 }

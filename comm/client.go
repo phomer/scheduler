@@ -8,7 +8,6 @@ import (
 
 	"github.com/gorilla/http"
 	httpc "github.com/gorilla/http/client"
-	//"net/http"
 
 	"github.com/phomer/scheduler/accounts"
 	"github.com/phomer/scheduler/datastore"
@@ -72,6 +71,6 @@ func DisplayStream(response *Response) {
 			}
 			log.Fatal("Streaming", err)
 		}
-		fmt.Printf("X: %s", data)
+		fmt.Printf("%s", data)
 	}
 }
