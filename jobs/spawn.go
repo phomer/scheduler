@@ -2,7 +2,6 @@ package jobs
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"syscall"
@@ -11,32 +10,33 @@ import (
 )
 
 var output_flags = os.O_RDWR | os.O_CREATE
-var output_perms os.FileMode = 0777
+var output_perms os.FileMode = 0700
 
 // TODO: Take a command and turn it into an active job
 func Spawn(account *accounts.Account, job *ActiveJob) error {
-	active := NewActive()
-
 	command := job.Cmd
 
 	fmt.Printf("Spawn user: %s cmd: %s args: %v\n", account.Username, command.Cmd, command.Args)
 
-	attributes, _ := Attributes(account, command)
+	attributes := Attributes(account, command)
 
 	pid, err := syscall.ForkExec(command.Cmd, command.Args, attributes)
 	if err != nil {
 		return err
 	}
 
+	fmt.Println("Spawned Job", pid)
+
 	job = CheckStatus(pid, job) // Might be done already
 
+	active := NewActive()
 	active.AddJob(pid, job)
 
 	return nil
 }
 
 // Set up the attributes for the process
-func Attributes(account *accounts.Account, command *Command) (*syscall.ProcAttr, string) {
+func Attributes(account *accounts.Account, command *Command) *syscall.ProcAttr {
 
 	//cwd := account.Directory // Set at registration
 	cwd := ""              // Set at registration
@@ -46,6 +46,12 @@ func Attributes(account *accounts.Account, command *Command) (*syscall.ProcAttr,
 
 	filepath := command.Filepath
 	output := OutputFile(filepath)
+
+	if output == nil {
+		// If we can't open the output file, log the contents to the server
+		fmt.Println("Output file reset to Server's stderr")
+		output = os.Stderr
+	}
 
 	// TODO: Not the server's stdin, but nil ...
 	files := []uintptr{os.Stdin.Fd(), output.Fd(), output.Fd()} // Stop in, combine out+err
@@ -63,19 +69,18 @@ func Attributes(account *accounts.Account, command *Command) (*syscall.ProcAttr,
 		Sys:   sys,
 	}
 
-	return proc_attr, filepath
+	return proc_attr
 }
 
 func OutputFilepath(path string, username string, jobid int) string {
-
 	return filepath.Join(path, fmt.Sprintf("%s-%d.output", username, jobid))
 }
 
 func OutputFile(filepath string) *os.File {
-
 	file, err := os.OpenFile(filepath, output_flags, output_perms)
 	if err != nil {
-		log.Fatal("Output File", err)
+		fmt.Println("Failed to Openfile", filepath, err)
+		return nil
 	}
 
 	return file

@@ -3,10 +3,10 @@ package accounts
 import (
 	"errors"
 	"fmt"
-	"log"
 	"path/filepath"
 
 	"github.com/phomer/scheduler/datastore"
+	"github.com/phomer/scheduler/log"
 )
 
 type ClientConfig struct {
@@ -34,7 +34,11 @@ func NewClientConfig(hostname string, username string, token *Token) *ClientConf
 
 // Client initialization
 func FindClientConfig() *ClientConfig {
-	file := FindFile(paths)
+	file, err := FindFile(paths)
+	if err != nil {
+		log.Fatal("Config File", err)
+	}
+
 	buffer := datastore.ReadFile(file)
 
 	config := new(ClientConfig)
@@ -57,14 +61,13 @@ func (config *ClientConfig) GetUrl(request_type string) string {
 		hostname = "127.0.0.1"
 	}
 
-	fmt.Println("Hostname ", hostname, " and ", Hostname())
+	fmt.Println("Accessing server:", hostname)
 
 	return fmt.Sprintf("%s://%s:%s/%s", config.Protocol, hostname, config.Port, request_type)
 }
 
 func (config *ClientConfig) filename() string {
-	name := config.Hostname + "-" + config.Username + ".key"
-	return name
+	return fmt.Sprintf("%s-%s.key", config.Hostname, config.Username)
 }
 
 func (config *ClientConfig) SaveConfig() {
@@ -78,13 +81,19 @@ func (config *ClientConfig) SaveConfig() {
 	datastore.WriteFile(filepath.Join(".", filename), buffer)
 }
 
-func FindFile(paths []string) string {
-	for i := 0; i < len(paths); i++ {
-		path := "./"
-		filename := "elephant-paulwhomer.key"
-		datastore.TouchFile(path, filename)
+func FindFile(paths []string) (string, error) {
 
-		return filepath.Join(path, filename)
+	for i := 0; i < len(paths); i++ {
+		matches, err := filepath.Glob("*-*.key")
+		if err != nil {
+			return "", err
+		}
+
+		// TODO: Should realy ask the user which one they want, but for
+		// now lets just take the first file that is found.
+		if len(matches) > 0 {
+			return matches[0], nil
+		}
 	}
-	return ""
+	return "", errors.New("Missing File")
 }

@@ -96,7 +96,7 @@ func (server *Server) Start() {
 	sig.Catch(syscall.SIGHUP, HandleSighup)
 
 	// TODO: Quick fix
-	go WatchAuthChange()
+	go WatchFileChange()
 
 	err := server.web.ListenAndServe()
 	if err != nil {
@@ -125,47 +125,16 @@ func HandleSighup() {
 	// a reasonable way to restart it, or it's just leaking ...
 	// Probably need a better way to tell the server to reload
 	fmt.Println("Restarting Web Server after Signal")
-	err := server.web.ListenAndServe()
-	if err != nil {
-		fmt.Println("FATAL: Web Server Error: ", err)
-		return
-	}
+	TryWebServerRestart()
 }
 
-// TOOD: This is pretty horrible...
-func WatchAuthChange() {
+func TryWebServerRestart() {
+	defer func() {
+		_ = recover()
+		// Ignore any errors, we don't want to know ...
+	}()
 	server := Global()
-
-	watcher, err := fsnotify.NewWatcher()
-	if err != nil {
-		log.Fatal("FileWatcher", err)
-	}
-
-	auth := server.Auth
-	watcher.Add(auth.GetFilepath())
-	for {
-		select {
-		case event, ok := <-watcher.Events:
-			if !ok {
-				log.Fatal("File Watcher Failed", errors.New("FileWatcher"))
-			}
-			if event.Op&fsnotify.Write == fsnotify.Write {
-				fmt.Println("Datamodified, reloading")
-				auth.Reload()
-
-				// Causes the web server to die
-				err := server.web.ListenAndServe()
-				if err != nil {
-					log.Fatal("Web Server Error: ", err)
-				}
-			}
-		case err, ok := <-watcher.Errors:
-			if !ok {
-				log.Fatal("File Watcher Errors Failed", errors.New("FileWatcher"))
-			}
-			log.Fatal("File Watcher", err)
-		}
-	}
+	server.web.ListenAndServe()
 }
 
 func NewRouter() *mux.Router {
@@ -178,4 +147,48 @@ func NewRouter() *mux.Router {
 	router.HandleFunc("/remove", Remove)
 
 	return router
+}
+
+// TODO: This is pretty horrible...
+func WatchFileChange() {
+	server := Global()
+
+	// Createa new watcher
+	watcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		log.Fatal("FileWatcher", err)
+	}
+
+	// Watch the accounts file to see if anyone has registered
+	auth := server.Auth
+	filepath := auth.GetFilepath()
+	watcher.Add(filepath)
+
+	for {
+		select {
+		case event, ok := <-watcher.Events:
+			if !ok {
+				log.Fatal("File Watcher Failed", errors.New("FileWatcher"))
+			}
+
+			// If the file is modified, reload it
+			if event.Op&fsnotify.Write == fsnotify.Write {
+				auth.Reload()
+
+				// TODO: Sometimes Causes the web server to die
+				TryWebServerRestart()
+			}
+
+		case err, ok := <-watcher.Errors:
+			if !ok {
+				log.Fatal("File Watcher Errors Failed", errors.New("FileWatcher"))
+			}
+
+			// TODO: Seems to have bad fd errors sometimes? Sets it into an endless
+			// error loop. Instead, we'll just stop it and no longer have the
+			// ability to register properly.
+			fmt.Println("File Watcher", err.(error).Error())
+			return
+		}
+	}
 }

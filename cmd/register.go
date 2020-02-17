@@ -10,7 +10,7 @@ func main() {
 	username := accounts.Username()
 	hostname := accounts.Hostname()
 
-	fmt.Println("Registering ", username, " on ", hostname)
+	fmt.Println("Registering", username, "on", hostname)
 
 	// Call the JWT stuff to generate the auth info
 	token := accounts.CreateToken()

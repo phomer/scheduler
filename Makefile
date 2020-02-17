@@ -9,6 +9,7 @@ start: build
 
 stop:
 	-pkill scheduled
+	sleep 1
 
 clean: stop
 	rm -rf ./tests/data

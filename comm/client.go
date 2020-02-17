@@ -23,6 +23,7 @@ func TokenArray(config *accounts.ClientConfig) []string {
 	return []string{config.Token.Signed}
 }
 
+// Make a request to the server
 func MakeRequest(config *accounts.ClientConfig, request *jobs.Request) *Response {
 
 	url := config.GetUrl(request.Type)
@@ -56,6 +57,7 @@ func MakeRequest(config *accounts.ClientConfig, request *jobs.Request) *Response
 
 var StopStreaming = false
 
+// Just keep printing up the lines from the response, until the user closes it
 func DisplayStream(response *Response) {
 	defer response.Reader.Close()
 
@@ -64,13 +66,22 @@ func DisplayStream(response *Response) {
 		if StopStreaming {
 			return
 		}
+
 		data, err := reader.ReadBytes('\n')
 		if err != nil {
 			if err == io.EOF {
 				return
+			} else if err == io.ErrUnexpectedEOF {
+				// Interrupt read
+				fmt.Printf("%s", data)
+				return
+			} else {
+				log.Fatal("ReadBytes", err)
 			}
-			log.Fatal("Streaming", err)
 		}
+
 		fmt.Printf("%s", data)
 	}
+
+	fmt.Println("Done Reading Buffer")
 }

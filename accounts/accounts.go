@@ -51,22 +51,29 @@ func NewAccount(hostname string, username string, token *Token) *Account {
 	}
 }
 
+var current *Authentication
+
 func NewAuthentication() *Authentication {
+	if current != nil {
+		return current
+	}
+
 	account_map := &AccountMap{
 		Accounts: make(map[string]*Account, 0),
 	}
 
-	result := &Authentication{
+	current = &Authentication{
 		Map: account_map,
 		db:  datastore.NewDatabase("Accounts"),
 	}
 
-	return result
+	current.load()
+
+	return current
 }
 
 func FindAccount(username string) *Account {
 	auth := NewAuthentication()
-	auth.Reload()
 	account := auth.Find(username)
 	return account
 }
@@ -78,6 +85,7 @@ func (auth *Authentication) UpdateAccount(account *Account) {
 	auth.file_lock()
 
 	fmt.Println("Updating Account")
+
 	auth.load() // Could have changed since last loaded
 	auth.Map.Accounts[account.Username] = account
 	auth.store()
@@ -90,16 +98,13 @@ func (auth *Authentication) Reload() {
 	auth.mux.Lock()
 	auth.file_lock()
 
-	fmt.Println("Reloading Accounts")
 	auth.load()
-	fmt.Println("Accounts Updated!")
 
 	auth.file_unlock()
 	auth.mux.Unlock()
 }
 
 func (auth *Authentication) Find(username string) *Account {
-
 	auth.mux.Lock()
 	defer auth.mux.Unlock()
 	// Don't worry about the file locks here, just in process only

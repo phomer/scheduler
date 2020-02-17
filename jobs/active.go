@@ -1,12 +1,14 @@
 package jobs
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"sync"
 	"syscall"
 
 	"github.com/phomer/scheduler/accounts"
+	"github.com/phomer/scheduler/log"
 	"github.com/phomer/scheduler/sig"
 )
 
@@ -23,12 +25,7 @@ type ActiveJob struct {
 	Offset int64
 }
 
-func NewActiveJob(account *accounts.Account, command *Command) *ActiveJob {
-
-	sched := NewScheduled()
-
-	command = sched.AddScheduledCommand(account.Username, command)
-
+func NewActiveJob(command *Command) *ActiveJob {
 	return &ActiveJob{
 		Cmd: command,
 	}
@@ -59,13 +56,13 @@ func NewActive() *Active {
 	sig.Initialize()
 	sig.Catch(syscall.SIGCHLD, UpdateJobStatus)
 
-	return &Active{
+	current = &Active{
 		Jobs: make(map[int]*ActiveJob, 0),
 	}
+	return current
 }
 
 func (active *Active) IsActive(pid int) bool {
-
 	active.mux.Lock()
 	defer active.mux.Unlock()
 
@@ -78,9 +75,13 @@ func (active *Active) IsActive(pid int) bool {
 }
 
 func (active *Active) AddJob(pid int, job *ActiveJob) {
-	active.mux.Lock()
 
-	fmt.Println("Tracking Job ", pid)
+	// Guard against coding failures.
+	if pid == 0 {
+		log.Fatal("Invalid Process", errors.New("Missing"), job)
+	}
+
+	active.mux.Lock()
 
 	active.Jobs[pid] = job
 
@@ -93,6 +94,15 @@ func (active *Active) FindJobStatus(username string, jobid int) *ActiveJob {
 	entry := active.find(username, jobid)
 
 	active.mux.Unlock()
+
+	// Outside of the active lock
+	if entry == nil {
+		sched := NewScheduled()
+		command := sched.FindCommand(username, jobid)
+		if command != nil {
+			entry = NewActiveJob(command)
+		}
+	}
 
 	return entry
 }
@@ -120,9 +130,16 @@ func CheckStatus(pid int, job *ActiveJob) *ActiveJob {
 		job.IsRunning = false // Assume it is false for now.
 
 	} else if status.Exited() {
+		fmt.Println("Marking as Exited", pid)
 		job.IsRunning = false
 		job.Status = status.ExitStatus()
+		job.Pid = pid
+
+	} else {
+		job.IsRunning = true
+		job.Pid = pid
 	}
+
 	return job
 }
 
@@ -134,8 +151,9 @@ func UpdateJobStatus() {
 	active.mux.Lock()
 
 	for pid, job := range active.Jobs {
-		fmt.Println("Checking Status for ", pid)
-		active.Jobs[pid] = CheckStatus(pid, job)
+		if job.IsRunning {
+			active.Jobs[pid] = CheckStatus(pid, job)
+		}
 	}
 
 	// Go through and delete entries in the overall list of children

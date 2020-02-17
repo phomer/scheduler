@@ -18,8 +18,6 @@ import (
 )
 
 func main() {
-	fmt.Println("schedule ", os.Args[1:])
-
 	// Read in the config parms
 	config := accounts.FindClientConfig()
 
@@ -42,12 +40,19 @@ type CliCommand int
 var jobid CliCommand = 0
 var cli_cmd string
 
+var job_flags = map[string]bool{
+	"tail":   true,
+	"output": true,
+	"status": true,
+	"remove": true,
+}
+
 func ParseArgs(username string) *jobs.Request {
 
-	flag.Var(&jobid, "tail", "jobid")
-	flag.Var(&jobid, "output", "jobid")
-	flag.Var(&jobid, "status", "jobid")
-	flag.Var(&jobid, "remove", "jobid")
+	// Add all of the flags as single arguments
+	for value, _ := range job_flags {
+		flag.Var(&jobid, value, "jobid")
+	}
 
 	flag.Parse()
 
@@ -68,16 +73,15 @@ func (cmd *CliCommand) String() string {
 }
 
 func (cmd *CliCommand) Set(value string) error {
-	fmt.Println("Found a flag " + value)
-
 	if *cmd != 0 {
 		return errors.New("Duplicate Command")
 	}
+
 	integer, err := strconv.Atoi(value)
 	if err != nil {
 		return err
 	}
-	cmd = (*CliCommand)(&integer)
+	*cmd = CliCommand(integer)
 
 	return nil
 }
@@ -99,8 +103,6 @@ func BuildExecuteRequest(username string, args []string) *jobs.Request {
 
 	found, start, start_scale = Frequency(args[next])
 	if found {
-		fmt.Printf("Start: %d Scale: %v\n", start, start_scale)
-
 		next++
 		found, cont, scale = Frequency(args[next])
 		if found {
@@ -122,7 +124,7 @@ func BuildExecuteRequest(username string, args []string) *jobs.Request {
 		Type:       request_type,
 		Cmd:        cmd,
 		Args:       args[next:],
-		Time:       time.Now().Unix(),
+		Time:       time.Now().Unix(), // Local time for client
 		Start:      start,
 		StartScale: start_scale,
 		Continue:   cont,
@@ -149,19 +151,20 @@ func Frequency(value string) (bool, int, *jobs.TimeScale) {
 			//Should assume its a command that starts with a number, not a time scale
 			return false, 0, nil // Implicit defaults for the vars
 		}
+
 		return true, number, scale
 	}
-
 	return false, 0, nil // Implicit defaults for the vars
 }
 
+// Count up the number of command flags found in the args, for validation
 func CountCommands() int {
 	count := 0
 	flag.Visit(func(value *flag.Flag) {
-		// TODO: Shouldn't be this redundant.
-		if value.Name == "tail" || value.Name == "output" ||
-			value.Name == "status" || value.Name == "remove" {
 
+		// See if this is a flag
+		_, ok := job_flags[value.Name]
+		if ok {
 			count++
 		}
 
@@ -171,16 +174,15 @@ func CountCommands() int {
 	return count
 }
 
+// Stop the client from streaming server job output
 func StopStreaming() {
-
 	fmt.Println("Shut her down, Clancy, she’s pumping mud")
 
 	comm.StopStreaming = true
 
 	go func() {
-		// Give it a change, but if it's not happening ...
+		// Give it a change to stop nicely, but if it's not happening ...
 		time.Sleep(1 * time.Second)
-		fmt.Printf("Forced a hard-close!")
 		os.Exit(0)
 	}()
 }
