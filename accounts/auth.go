@@ -2,19 +2,21 @@ package accounts
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"os/user"
 	"time"
+
+	"github.com/phomer/scheduler/log"
 
 	jwt "github.com/dgrijalva/jwt-go"
 )
 
 type Token struct {
-	token []byte
+	Signed string
 }
 
 func Hostname() string {
+	// TODO: Replace this, if it isn't commonly set on servers?
 	hostname, err := os.Hostname()
 	if err != nil {
 		log.Fatal("Finding Hostname", err)
@@ -32,32 +34,62 @@ func Username() string {
 
 // # of Seconds since ...
 func ExpiryDate() int64 {
-	return time.Now().Add(2 * time.Hour).Unix()
+
+	// TODO: Implement some form of reissing the token, besides reregistering
+	return time.Now().Add(24 * 60 * time.Hour).Unix()
 }
 
 func SecretKey() []byte {
 	return []byte("RandomizeThisPlease")
 }
 
-func NewToken() *Token {
-	token := jwt.New(jwt.SigningMethodHS256)
+func CreateToken() *Token {
+	claims := &jwt.StandardClaims{
+		ExpiresAt: time.Now().Unix() + 15000,
+		Issuer:    "scheduler",
+	}
 
-	claims := token.Claims.(jwt.MapClaims)
-
-	claims["admin"] = false      // TODO: Check this?
-	claims["name"] = Username()  // TODO: Check this?
-	claims["exp"] = ExpiryDate() // TODO: Check this?
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
 	tokenString, err := token.SignedString(SecretKey())
 	if err != nil {
-		fmt.Println("Failed to Sign Token", err, token)
+		fmt.Println("Failed to Sign Token ", err, token)
 		panic("Goodbye")
 	}
 
+	// Test it
+	_, err = jwt.ParseWithClaims(tokenString, claims, GetKey)
+	if err != nil {
+		log.Fatal("Tokens are failing", err)
+	}
+
 	return &Token{
-		token: []byte(tokenString),
+		Signed: tokenString,
 	}
 }
 
-func Validate() {
+func NewToken(tokenString string) *Token {
+	return &Token{
+		Signed: tokenString,
+	}
+}
+
+func Validate(token *Token) bool {
+
+	claims := &jwt.StandardClaims{
+		ExpiresAt: time.Now().Unix() + 15000,
+		Issuer:    "scheduler",
+	}
+
+	tokenStatus, err := jwt.ParseWithClaims(token.Signed, claims, GetKey)
+	if err != nil {
+		log.Fatal("ParseWithClaims", err, tokenStatus, token.Signed)
+	}
+
+	return tokenStatus.Valid
+}
+
+func GetKey(token *jwt.Token) (interface{}, error) {
+	// TODO: Interrupted by cat needing food :-(, will fix later.
+	return SecretKey(), nil
 }

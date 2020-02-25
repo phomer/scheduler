@@ -1,18 +1,17 @@
 package comm
 
 import (
+	"bufio"
 	"fmt"
-	"io/ioutil"
-	"net"
+	"io"
 	"strings"
 
-	"os"
-
 	"github.com/gorilla/http"
-	//"net/http"
+	httpc "github.com/gorilla/http/client"
 
 	"github.com/phomer/scheduler/accounts"
 	"github.com/phomer/scheduler/datastore"
+	"github.com/phomer/scheduler/jobs"
 	"github.com/phomer/scheduler/log"
 )
 
@@ -20,67 +19,69 @@ func NewClient() http.Client {
 	return http.DefaultClient
 }
 
-func MakeRequest(config *accounts.ClientConfig, request *Request) string {
+func TokenArray(config *accounts.ClientConfig) []string {
+	return []string{config.Token.Signed}
+}
 
-	url := "http://127.0.0.1:8000/" // TODO: Get this from config
+// Make a request to the server
+func MakeRequest(config *accounts.ClientConfig, request *jobs.Request) *Response {
+
+	url := config.GetUrl(request.Type)
 	client := NewClient()
 
 	buffer := datastore.Serialize(request)
 	reader := strings.NewReader(string(buffer))
 
-	status, args, read_closer, err := client.Post(url, nil, reader)
+	headers := map[string][]string{
+		"Authorization": []string{config.Token.Signed},
+		"Name":          []string{config.Username},
+	}
+
+	status, _, read_closer, err := client.Post(url, headers, reader)
 	if err != nil {
-		switch value := err.(type) {
+		switch err.(type) {
+
+		// TODO: Add in nicer error messages
+
 		default:
-			log.Dump("error", err)
 			log.Fatal("Get", err)
-			_ = value
 		}
 	}
 
-	defer read_closer.Close()
-
-	// TODO: Do something with this data
-	_ = status
-	_ = args
-
-	data, err := ioutil.ReadAll(read_closer)
-	if err != nil {
-		fmt.Println("Buffer read err", err)
-	} else {
-		fmt.Println("Buffer:", string(data))
+	if status.Code != httpc.SUCCESS_OK {
+		return NewResponse("Post Status Failed", nil)
 	}
 
-	fmt.Println("Command is Sent", status)
-
-	return "Sometext"
+	return NewResponse("Success", read_closer)
 }
 
-func SimpleRequest(message string) string {
-	writer := os.Stdout
+var StopStreaming = false
 
-	url := "http://127.0.0.1:8000/"
+// Just keep printing up the lines from the response, until the user closes it
+func DisplayStream(response *Response) {
+	defer response.Reader.Close()
 
-	status, err := http.Get(writer, url)
-	if err != nil {
-		switch value := err.(type) {
-		case *net.OpError:
-			/*
-				if val.Err == net.ConnectionError {
-					fmt.Println("Server is not running on host")
-					exit(-1)
-				}
-			*/
-			log.Fatal("Get", err)
-
-		default:
-			log.Dump("error", err)
-			log.Fatal("Get", err)
-			_ = value
+	reader := bufio.NewReader(response.Reader)
+	for {
+		if StopStreaming {
+			return
 		}
+
+		data, err := reader.ReadBytes('\n')
+		if err != nil {
+			if err == io.EOF {
+				return
+			} else if err == io.ErrUnexpectedEOF {
+				// Interrupt read
+				fmt.Printf("%s", data)
+				return
+			} else {
+				log.Fatal("ReadBytes", err)
+			}
+		}
+
+		fmt.Printf("%s", data)
 	}
 
-	fmt.Println("Returned status=", status)
-
-	return "Results"
+	fmt.Println("Done Reading Buffer")
 }

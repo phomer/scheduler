@@ -1,11 +1,15 @@
 package log
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+)
 
 // Terminate now
 func Fatal(message string, err error, args ...interface{}) {
-	all := append([]interface{}{"FATAL ERROR", message, err}, args...)
+	all := append([]interface{}{"ERROR:", message, err}, args...)
 
-	fmt.Println(all)
-	panic("Goodbye")
+	fmt.Println(all...)
+
+	os.Exit(-1)
 }

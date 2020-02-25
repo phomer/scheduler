@@ -1,3 +1,5 @@
+.PHONY: all start stop clean fulltest build install test
+
 all: build
 	@echo "Built"
 
@@ -7,6 +9,7 @@ start: build
 
 stop:
 	-pkill scheduled
+	sleep 1
 
 clean: stop
 	rm -rf ./tests/data

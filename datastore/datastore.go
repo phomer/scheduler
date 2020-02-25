@@ -1,7 +1,6 @@
 package datastore
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -44,8 +43,6 @@ func (db *Database) Unlock() {
 }
 
 func (db *Database) Load(data interface{}) interface{} {
-	fmt.Println("Loading Database")
-
 	// Convert to JSON
 	buffer := ReadFile(db.filepath())
 
@@ -101,6 +98,11 @@ func TouchFile(path string, filename string) {
 		}
 		empty.Close()
 	}
+}
+
+// Expose the path outside so, it can be watched.
+func (db *Database) GetFilepath() string {
+	return db.filepath()
 }
 
 func (db *Database) Touch() {

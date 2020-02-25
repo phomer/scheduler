@@ -2,7 +2,6 @@ package jobs
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"syscall"
@@ -11,33 +10,48 @@ import (
 )
 
 var output_flags = os.O_RDWR | os.O_CREATE
-var output_perms os.FileMode = 0777
+var output_perms os.FileMode = 0700
 
-func Spawn(root interface{}, account *accounts.Account, command string, args []string) {
-	fmt.Println("Spawning off Process", command, " for ", account.Username)
+// TODO: Take a command and turn it into an active job
+func Spawn(account *accounts.Account, job *ActiveJob) error {
+	command := job.Cmd
 
-	attributes := Attributes(root, account)
+	fmt.Printf("Spawn user: %s cmd: %s args: %v\n", account.Username, command.Cmd, command.Args)
 
-	pid, err := syscall.ForkExec(command, args, attributes)
+	attributes := Attributes(account, command)
+
+	pid, err := syscall.ForkExec(command.Cmd, command.Args, attributes)
 	if err != nil {
-		log.Fatal("Spawn Died ", err)
+		return err
 	}
 
-	fmt.Println("Spawn Completed as ", pid)
+	fmt.Println("Spawned Job", pid)
+
+	job = CheckStatus(pid, job) // Might be done already
+
+	active := NewActive()
+	active.AddJob(pid, job)
+
+	return nil
 }
 
 // Set up the attributes for the process
-func Attributes(root interface{}, account *accounts.Account) *syscall.ProcAttr {
+func Attributes(account *accounts.Account, command *Command) *syscall.ProcAttr {
 
 	//cwd := account.Directory // Set at registration
-	cwd := "" // Set at registration
-
+	cwd := ""              // Set at registration
 	env_vars := []string{} // Pass through stuff for config reasons?
 
-	jobid := account.NextId
-	account.IncrementId()
+	//jobid := command.JobId
 
-	output := OutputFile(root, account.Username, jobid)
+	filepath := command.Filepath
+	output := OutputFile(filepath)
+
+	if output == nil {
+		// If we can't open the output file, log the contents to the server
+		fmt.Println("Output file reset to Server's stderr")
+		output = os.Stderr
+	}
 
 	// TODO: Not the server's stdin, but nil ...
 	files := []uintptr{os.Stdin.Fd(), output.Fd(), output.Fd()} // Stop in, combine out+err
@@ -48,23 +62,25 @@ func Attributes(root interface{}, account *accounts.Account) *syscall.ProcAttr {
 		sys.Credential = &syscall.Credential{Uid: account.Uid, Gid: account.Gid}
 	}
 
-	return &syscall.ProcAttr{
+	proc_attr := &syscall.ProcAttr{
 		Dir:   cwd,
 		Env:   env_vars,
 		Files: files,
 		Sys:   sys,
 	}
+
+	return proc_attr
 }
 
-func OutputFile(root interface{}, username string, jobid uint) *os.File {
+func OutputFilepath(path string, username string, jobid int) string {
+	return filepath.Join(path, fmt.Sprintf("%s-%d.output", username, jobid))
+}
 
-	data_path := "data" // TODO: Pick this out of root
-
-	path := filepath.Join(data_path, fmt.Sprintf("%s-%d.output", username, jobid))
-
-	file, err := os.OpenFile(path, output_flags, output_perms)
+func OutputFile(filepath string) *os.File {
+	file, err := os.OpenFile(filepath, output_flags, output_perms)
 	if err != nil {
-		log.Fatal("Output File", err)
+		fmt.Println("Failed to Openfile", filepath, err)
+		return nil
 	}
 
 	return file
