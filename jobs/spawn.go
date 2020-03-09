@@ -12,7 +12,6 @@ import (
 var output_flags = os.O_RDWR | os.O_CREATE
 var output_perms os.FileMode = 0700
 
-// TODO: Take a command and turn it into an active job
 func Spawn(account *accounts.Account, job *ActiveJob) error {
 	command := job.Cmd
 
@@ -25,10 +24,7 @@ func Spawn(account *accounts.Account, job *ActiveJob) error {
 		return err
 	}
 
-	fmt.Println("Spawned Job", pid)
-
 	job = CheckStatus(pid, job) // Might be done already
-
 	active := NewActive()
 	active.AddJob(pid, job)
 
@@ -49,7 +45,6 @@ func Attributes(account *accounts.Account, command *Command) *syscall.ProcAttr {
 
 	if output == nil {
 		// If we can't open the output file, log the contents to the server
-		fmt.Println("Output file reset to Server's stderr")
 		output = os.Stderr
 	}
 
@@ -58,7 +53,6 @@ func Attributes(account *accounts.Account, command *Command) *syscall.ProcAttr {
 
 	sys := &syscall.SysProcAttr{}
 	if account.Uid != uint32(os.Getuid()) || account.Gid != uint32(os.Getgid()) {
-		fmt.Println("Running as user's account")
 		sys.Credential = &syscall.Credential{Uid: account.Uid, Gid: account.Gid}
 	}
 
@@ -79,7 +73,6 @@ func OutputFilepath(path string, username string, jobid int) string {
 func OutputFile(filepath string) *os.File {
 	file, err := os.OpenFile(filepath, output_flags, output_perms)
 	if err != nil {
-		fmt.Println("Failed to Openfile", filepath, err)
 		return nil
 	}
 

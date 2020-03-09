@@ -1,7 +1,6 @@
 package accounts
 
 import (
-	"fmt"
 	"os"
 	"os/user"
 	"time"
@@ -53,8 +52,7 @@ func CreateToken() *Token {
 
 	tokenString, err := token.SignedString(SecretKey())
 	if err != nil {
-		fmt.Println("Failed to Sign Token ", err, token)
-		panic("Goodbye")
+		log.Fatal("Failed to Sign Token", err, token)
 	}
 
 	// Test it
@@ -90,6 +88,5 @@ func Validate(token *Token) bool {
 }
 
 func GetKey(token *jwt.Token) (interface{}, error) {
-	// TODO: Interrupted by cat needing food :-(, will fix later.
 	return SecretKey(), nil
 }

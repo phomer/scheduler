@@ -56,7 +56,6 @@ func (config *ClientConfig) GetUrl(request_type string) string {
 
 	hostname := config.Hostname
 
-	// TODO: Replace with DNS lookup?
 	if Hostname() == hostname {
 		hostname = "127.0.0.1"
 	}

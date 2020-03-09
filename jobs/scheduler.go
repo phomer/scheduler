@@ -81,7 +81,7 @@ func NewScheduled() *Scheduled {
 }
 
 // Side-effect
-func (cmap *CommandMap) update_jobid(command *Command) *Command {
+func (cmap *CommandMap) updateJobId(command *Command) *Command {
 
 	jobid := cmap.NextId
 
@@ -93,9 +93,9 @@ func (cmap *CommandMap) update_jobid(command *Command) *Command {
 	return command
 }
 
-func (cmap *CommandMap) add_command(command *Command) *Command {
+func (cmap *CommandMap) addCommand(command *Command) *Command {
 
-	command = cmap.update_jobid(command)
+	command = cmap.updateJobId(command)
 	command.Pending = true
 
 	cmap.Commands[command.JobId] = command
@@ -103,7 +103,7 @@ func (cmap *CommandMap) add_command(command *Command) *Command {
 	return command
 }
 
-func (sched *Scheduled) find_user(username string) *CommandMap {
+func (sched *Scheduled) findUser(username string) *CommandMap {
 	user, ok := sched.Map.Users[username]
 	if !ok {
 		user = &CommandMap{
@@ -119,8 +119,8 @@ func (sched *Scheduled) AllocateNewJobId(username string, command *Command) *Com
 	sched.mux.Lock()
 	defer sched.mux.Unlock()
 
-	user := sched.find_user(username)
-	command = user.update_jobid(command)
+	user := sched.findUser(username)
+	command = user.updateJobId(command)
 
 	sched.store()
 
@@ -131,8 +131,8 @@ func (sched *Scheduled) AddScheduledCommand(username string, command *Command) *
 	sched.mux.Lock()
 	defer sched.mux.Unlock()
 
-	user := sched.find_user(username)
-	command = user.add_command(command)
+	user := sched.findUser(username)
+	command = user.addCommand(command)
 
 	// Persist, no need for a lock, just one process has access
 	sched.store()
@@ -148,7 +148,7 @@ func (sched *Scheduled) RemoveUserCommand(username string, jobid int) int {
 	sched.mux.Lock()
 	defer sched.mux.Unlock()
 
-	user := sched.find_user(username)
+	user := sched.findUser(username)
 
 	_, ok := user.Commands[jobid]
 	if ok {
@@ -178,10 +178,12 @@ func (sched *Scheduled) FindCommand(username string, jobid int) *Command {
 	if !ok {
 		return nil
 	}
+
 	command, ok := user.Commands[jobid]
 	if !ok {
 		return nil
 	}
+
 	return command
 }
 
@@ -263,25 +265,17 @@ func ProcessSchedule() {
 	sched := NewScheduled()
 
 	for {
-		fmt.Println("Scheduling work.")
 		next, list := sched.FindNext()
 		if next < 1 {
-			fmt.Println("Executing jobs", list)
-
 			// Order wasn't preserved in the find, so it doesn't matter here
 			for _, command := range list {
 				account := accounts.FindAccount(command.Username)
 
 				job := NewActiveJob(command)
-
-				// TODO: Mark the job as run, before we actually run it.
 				sched.ResetCommand(command)
-
 				Spawn(account, job)
 			}
 		} else {
-			fmt.Println("Sleeping for", next, "until there is more work.")
-
 			// Need to interupt sometimes.
 			select {
 			case <-scheduling:

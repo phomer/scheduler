@@ -82,7 +82,7 @@ func FindAccount(username string) *Account {
 func (auth *Authentication) UpdateAccount(account *Account) {
 
 	auth.mux.Lock()
-	auth.file_lock()
+	auth.fileLock()
 
 	fmt.Println("Updating Account")
 
@@ -90,24 +90,23 @@ func (auth *Authentication) UpdateAccount(account *Account) {
 	auth.Map.Accounts[account.Username] = account
 	auth.store()
 
-	auth.file_unlock()
+	auth.fileUnlock()
 	auth.mux.Unlock()
 }
 
 func (auth *Authentication) Reload() {
 	auth.mux.Lock()
-	auth.file_lock()
+	auth.fileLock()
 
 	auth.load()
 
-	auth.file_unlock()
+	auth.fileUnlock()
 	auth.mux.Unlock()
 }
 
 func (auth *Authentication) Find(username string) *Account {
 	auth.mux.Lock()
 	defer auth.mux.Unlock()
-	// Don't worry about the file locks here, just in process only
 
 	value, ok := auth.Map.Accounts[username]
 	if ok {
@@ -123,12 +122,12 @@ func (auth *Authentication) GetFilepath() string {
 }
 
 // Lock the underlying accounts file
-func (auth *Authentication) file_lock() {
+func (auth *Authentication) fileLock() {
 	auth.db.Lock()
 }
 
 // Unlock the underlying accounts file
-func (auth *Authentication) file_unlock() {
+func (auth *Authentication) fileUnlock() {
 	auth.db.Unlock()
 }
 

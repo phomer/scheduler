@@ -67,13 +67,13 @@ func Schedule(response http.ResponseWriter, request *http.Request) {
 	command := jobs.NewCommand(cmd)
 
 	command = Global().Sched.AddScheduledCommand(account.Username, command)
-	fmt.Println("Scheduling Work", command.JobId)
 
 	WriteResponse(response, "JobId: ", command.JobId)
 }
 
 func WriteResponse(response http.ResponseWriter, args ...interface{}) {
 	buffer := fmt.Sprint(args...)
+
 	response.Write([]byte(buffer))
 	response.Write([]byte("\n"))
 	response.(http.Flusher).Flush()
@@ -210,7 +210,6 @@ func ValidateRequest(response http.ResponseWriter, request *http.Request) (*acco
 	username := request.Header["Name"][0]
 	if username == "" {
 		fmt.Println("Missing Account", username)
-
 		return nil, errors.New("User not Registered")
 	}
 
@@ -218,7 +217,6 @@ func ValidateRequest(response http.ResponseWriter, request *http.Request) (*acco
 
 	if account == nil {
 		fmt.Println("Missing Account Information ", username)
-
 		return nil, errors.New("User not Registered")
 	}
 
@@ -270,10 +268,12 @@ func StreamResponse(job *jobs.ActiveJob, response http.ResponseWriter) {
 		}
 	}
 
+	// TODO: Have to wait for process here?
+	time.Sleep(100 * time.Millisecond)
+
 	// Keep trying until the job stops, it runs out of file, or the pipe closes.
 	finished := false
 	for {
-		time.Sleep(1000 * time.Millisecond)
 		buffer := make([]byte, 1024)
 
 		count, err := job.File.Read(buffer)

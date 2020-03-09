@@ -2,7 +2,6 @@ package jobs
 
 import (
 	"errors"
-	"fmt"
 	"os"
 	"sync"
 	"syscall"
@@ -126,11 +125,9 @@ func CheckStatus(pid int, job *ActiveJob) *ActiveJob {
 
 	_, err := syscall.Wait4(pid, &status, options, &usage)
 	if err != nil {
-		fmt.Println("Error for pid ", pid, err.(error).Error())
 		job.IsRunning = false // Assume it is false for now.
 
 	} else if status.Exited() {
-		fmt.Println("Marking as Exited", pid)
 		job.IsRunning = false
 		job.Status = status.ExitStatus()
 		job.Pid = pid
@@ -144,8 +141,6 @@ func CheckStatus(pid int, job *ActiveJob) *ActiveJob {
 }
 
 func UpdateJobStatus() {
-	fmt.Println("Waking up on a SIGCHLD")
-
 	active := NewActive()
 
 	active.mux.Lock()
