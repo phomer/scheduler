@@ -71,7 +71,7 @@ func Global() *Server {
 }
 
 // Catch an error if this is called twice
-func set_server(server *Server) {
+func setServer(server *Server) {
 	if current != nil {
 		log.Fatal("Instance", errors.New("Duplicate"))
 	}
@@ -90,7 +90,7 @@ func (server *Server) Start() {
 	go jobs.ProcessSchedule()
 
 	// Make this visible to the package, handers need access to shared config
-	set_server(server)
+	setServer(server)
 
 	sig.Initialize()
 	sig.Catch(syscall.SIGHUP, HandleSighup)
